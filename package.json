@@ -4,7 +4,8 @@
   "description": "",
   "main": "server.js",
   "type": "module",
-  "scripts": {
+    "scripts": {
+    "build": "npx puppeteer browsers install chrome",
     "start": "node server.js"
   },
   "keywords": [],
