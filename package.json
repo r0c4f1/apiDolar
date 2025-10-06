@@ -1,16 +1,14 @@
 {
-  "name": "api",
+  "name": "exchange-scraper",
   "version": "1.0.0",
-  "description": "",
-  "main": "main.js",
+  "main": "server.js",
+  "type": "module",
   "scripts": {
-    "start": "node main.js"
+    "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
   "dependencies": {
-    "chrome-launcher": "^1.2.1",
-    "puppeteer-core": "^24.23.0"
-  },
-  "license": "ISC"
+    "express": "4.19.2",
+    "puppeteer-core": "22.12.1",
+    "@sparticuz/chromium-min": "120.0.0"
+  }
 }
