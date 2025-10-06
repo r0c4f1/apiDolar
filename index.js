@@ -1,28 +1,30 @@
-import puppeteer from "puppeteer-core";
-import { launch } from "chrome-launcher";
+import puppeteer from "puppeteer";
 
 async function getExchangeRates() {
-  // 1️⃣ Lanzar Chrome usando chrome-launcher
-  const chrome = await launch({
-    chromeFlags: ["--headless", "--no-sandbox"],
-  });
-
-  const browser = await puppeteer.connect({
-    browserURL: `http://localhost:${chrome.port}`,
-    defaultViewport: null,
+  // Lanzar navegador headless compatible con Render
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--disable-software-rasterizer",
+    ],
   });
 
   const page = await browser.newPage();
 
-  // 2️⃣ Ir al sitio
+  // Ir al sitio
   await page.goto("https://exchangemonitor.net/dolar-venezuela", {
     waitUntil: "networkidle2",
+    timeout: 60000,
   });
 
-  // 3️⃣ Esperar a que aparezcan los elementos cargados por JS
+  // Esperar a que carguen los elementos dinámicos
   await page.waitForSelector(".rates-list .rate-container-parent");
 
-  // 4️⃣ Extraer la información
+  // Extraer información
   const rates = await page.evaluate(() => {
     const data = [];
     document.querySelectorAll(".rate-container-parent").forEach((el) => {
@@ -30,24 +32,20 @@ async function getExchangeRates() {
       const tasa = el.querySelector(".data-rate")?.innerText.trim() || "";
       const cambio = el.querySelector(".data-change")?.innerText.trim() || "";
       const fecha = el.querySelector(".rate-date")?.innerText.trim() || "";
-
       data.push({ nombre, tasa, cambio, fecha });
     });
     return data;
   });
 
-  // 5️⃣ Cerrar
-  await browser.disconnect();
-  await chrome.kill();
-
+  await browser.close();
   return rates;
 }
 
-// 6️⃣ Ejecutar y mostrar resultado
-getExchangeRates()
-  .then((data) => {
-    console.log(JSON.stringify(data, null, 2));
-  })
-  .catch((err) => {
-    console.error("❌ Error al obtener tasas:", err);
-  });
+// Ejecutar si es script directo
+if (process.env.NODE_ENV !== "production") {
+  getExchangeRates()
+    .then((data) => console.log(JSON.stringify(data, null, 2)))
+    .catch((err) => console.error("❌ Error al obtener tasas:", err));
+}
+
+export default getExchangeRates;
