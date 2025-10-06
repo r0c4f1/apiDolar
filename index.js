@@ -1,8 +1,7 @@
-import puppeteer from "puppeteer";
+import { chromium } from "playwright-core";
 
 async function getExchangeRates() {
-  // Lanzar navegador headless compatible con Render
-  const browser = await puppeteer.launch({
+  const browser = await chromium.launch({
     headless: true,
     args: [
       "--no-sandbox",
@@ -15,37 +14,29 @@ async function getExchangeRates() {
 
   const page = await browser.newPage();
 
-  // Ir al sitio
   await page.goto("https://exchangemonitor.net/dolar-venezuela", {
-    waitUntil: "networkidle2",
+    waitUntil: "domcontentloaded",
     timeout: 60000,
   });
 
-  // Esperar a que carguen los elementos dinámicos
   await page.waitForSelector(".rates-list .rate-container-parent");
 
-  // Extraer información
-  const rates = await page.evaluate(() => {
-    const data = [];
-    document.querySelectorAll(".rate-container-parent").forEach((el) => {
-      const nombre = el.querySelector(".text-title")?.innerText.trim() || "";
-      const tasa = el.querySelector(".data-rate")?.innerText.trim() || "";
-      const cambio = el.querySelector(".data-change")?.innerText.trim() || "";
-      const fecha = el.querySelector(".rate-date")?.innerText.trim() || "";
-      data.push({ nombre, tasa, cambio, fecha });
-    });
-    return data;
-  });
+  const rates = await page.$$eval(".rate-container-parent", (elements) =>
+    elements.map((el) => ({
+      nombre: el.querySelector(".text-title")?.innerText.trim() || "",
+      tasa: el.querySelector(".data-rate")?.innerText.trim() || "",
+      cambio: el.querySelector(".data-change")?.innerText.trim() || "",
+      fecha: el.querySelector(".rate-date")?.innerText.trim() || "",
+    }))
+  );
 
   await browser.close();
   return rates;
 }
 
-// Ejecutar si es script directo
-if (process.env.NODE_ENV !== "production") {
-  getExchangeRates()
-    .then((data) => console.log(JSON.stringify(data, null, 2)))
-    .catch((err) => console.error("❌ Error al obtener tasas:", err));
-}
+// Ejecutar script directamente
+getExchangeRates()
+  .then((data) => console.log(JSON.stringify(data, null, 2)))
+  .catch((err) => console.error("❌ Error al obtener tasas:", err));
 
 export default getExchangeRates;
