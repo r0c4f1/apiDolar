@@ -6,15 +6,24 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Solo el endpoint de rates
 app.get('/api/rates', async (req, res) => {
   let browser;
   try {
-    console.log('🚀 Iniciando scraping...');
+    console.log('🚀 Iniciando scraping en Railway...');
     
+    // Configuración específica para Railway
     browser = await chromium.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
+        '--disable-gpu'
+      ]
     });
 
     const page = await browser.newPage();
@@ -27,14 +36,12 @@ app.get('/api/rates', async (req, res) => {
 
     console.log('🔍 Buscando contenedores...');
     
-    // Esperar los contenedores específicos
     await page.waitForSelector('.rates-list .rate-container-parent', { 
       timeout: 10000 
     });
 
     console.log('✅ Contenedores encontrados, extrayendo datos...');
 
-    // Extraer los datos
     const rates = await page.evaluate(() => {
       const data = {};
       const containers = document.querySelectorAll('.rates-list .rate-container-parent');
@@ -74,14 +81,12 @@ app.get('/api/rates', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ ERROR DETALLADO:', error);
+    console.error('❌ ERROR:', error.message);
     
-    // Información detallada del error
     res.status(500).json({
       success: false,
       error: error.message,
-      errorType: error.name,
-      stack: error.stack
+      errorType: error.name
     });
   } finally {
     if (browser) {
@@ -91,10 +96,10 @@ app.get('/api/rates', async (req, res) => {
   }
 });
 
-// Solo este endpoint
 app.get('/', (req, res) => {
   res.json({ 
-    message: 'Ir a /api/rates para ver las tasas de cambio' 
+    message: 'Ir a /api/rates para ver las tasas de cambio',
+    platform: 'Railway'
   });
 });
 
