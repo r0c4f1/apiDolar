@@ -1,82 +1,53 @@
 const express = require('express');
-const puppeteer = require('puppeteer-core');
-const chromium = require('chrome-aws-lambda');
+const axios = require('axios');
+const cheerio = require('cheerio');
 
 const app = express();
 
+// Middleware
 app.use(express.json());
 
+// Rutas
 app.get('/', (req, res) => {
   res.json({ 
-    message: 'API funcionando con puppeteer-core!',
-    endpoints: ['/scraping', '/health', '/test']
+    message: '🚀 API de Scraping funcionando!',
+    endpoints: {
+      home: '/',
+      health: '/health', 
+      scraping: '/scraping?url=https://example.com'
+    }
   });
 });
- 
+
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
-});
-
-app.get('/test', async (req, res) => {
-  let browser = null;
-  
-  try {
-    console.log('🚀 Iniciando test...');
-    
-    const executablePath = await chromium.executablePath;
-    console.log('Chromium path:', executablePath);
-    
-    browser = await puppeteer.launch({
-      args: chromium.args,
-      executablePath: executablePath,
-      headless: chromium.headless,
-    });
-
-    const page = await browser.newPage();
-    await page.goto('https://httpbin.org/html', { 
-      waitUntil: 'domcontentloaded',
-      timeout: 10000 
-    });
-    
-    const title = await page.title();
-    
-    await browser.close();
-    
-    res.json({
-      success: true,
-      message: '✅ Test exitoso!',
-      data: { title }
-    });
-    
-  } catch (error) {
-    console.error('❌ Error:', error);
-    if (browser) await browser.close();
-    res.status(500).json({ success: false, error: error.message });
-  }
+  res.json({ 
+    status: 'OK ✅',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
 app.get('/scraping', async (req, res) => {
-  let browser = null;
-  
   try {
     const url = req.query.url || 'https://example.com';
     
-    browser = await puppeteer.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath,
-      headless: chromium.headless,
-    });
-
-    const page = await browser.newPage();
-    await page.goto(url, { 
-      waitUntil: 'domcontentloaded',
-      timeout: 15000 
+    console.log(`🔍 Scrapeando: ${url}`);
+    
+    // Hacer request
+    const response = await axios.get(url, {
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
     });
     
-    const title = await page.title();
-    const description = await page.$eval('meta[name="description"]', el => el?.content || 'No description').catch(() => 'No description');
+    // Parsear HTML
+    const $ = cheerio.load(response.data);
     
-    await browser.close();
+    // Extraer datos
+    const title = $('title').text() || 'Sin título';
+    const description = $('meta[name="description"]').attr('content') || 'Sin descripción';
+    const h1 = $('h1').first().text().trim() || 'Sin H1';
     
     res.json({
       success: true,
@@ -84,21 +55,28 @@ app.get('/scraping', async (req, res) => {
         url: url,
         title: title,
         description: description,
+        h1: h1,
+        status: response.status,
         scrapedAt: new Date().toISOString()
       }
     });
     
   } catch (error) {
-    if (browser) await browser.close();
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      suggestion: 'Verifica que la URL sea correcta y accesible'
+    });
   }
 });
 
+// Export para Vercel
 module.exports = app;
 
+// Solo para desarrollo local
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
-    console.log(`🚀 Servidor local en puerto ${PORT}`);
+    console.log(`✅ Servidor local: http://localhost:${PORT}`);
   });
 }
