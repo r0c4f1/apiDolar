@@ -1,49 +1,63 @@
-import express from 'express';
-import { chromium } from 'playwright'; // Importa específicamente chromium
+const playwright = require('playwright-core');
 
-const app = express();
-
-app.get('/scraping', async (req, res) => {
+module.exports = async (req, res) => {
+  // Configuración específica para serverless
   let browser = null;
+  
   try {
-    // Configuración específica para entornos serverless
-    browser = await chromium.launch({
+    console.log('Iniciando browser...');
+    
+    // Usar chromium del sistema en lugar de descargado
+    browser = await playwright.chromium.launch({
+      executablePath: process.env.CHROME_PATH || '/usr/bin/chromium-browser',
       headless: true,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-accelerated-2d-canvas',
+        '--disable-gpu',
         '--no-first-run',
         '--no-zygote',
-        '--single-process',
-        '--disable-gpu'
+        '--single-process'
       ]
     });
-    
+
     const page = await browser.newPage();
     
-    // Tu lógica de scraping aquí
-    await page.goto('https://ejemplo.com');
+    // Configurar timeout
+    page.setDefaultTimeout(30000);
+    
+    console.log('Navegando a la página...');
+    await page.goto('https://example.com', { 
+      waitUntil: 'networkidle',
+      timeout: 30000 
+    });
+    
     const title = await page.title();
+    console.log('Título obtenido:', title);
     
     await browser.close();
     
-    res.json({ 
-      success: true, 
-      data: { title } 
+    res.status(200).json({
+      success: true,
+      data: {
+        title: title,
+        message: 'Scraping exitoso!'
+      }
     });
     
   } catch (error) {
-    if (browser) await browser.close();
-    res.status(500).json({ 
-      error: error.message 
+    console.error('Error durante el scraping:', error);
+    
+    if (browser) {
+      await browser.close().catch(e => console.error('Error cerrando browser:', e));
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      suggestion: 'El entorno puede no tener Chromium disponible'
     });
   }
-});
-
-app.listen(3000, () => {
-  console.log('Server running on port 3000');
-});
-
-module.exports = app;
+};
