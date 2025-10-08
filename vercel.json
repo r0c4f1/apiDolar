@@ -11,5 +11,11 @@
       "src": "/(.*)",
       "dest": "/api/index.js"
     }
-  ]
+  ],
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 30
+    }
+  },
+  "installCommand": "PLAYWRIGHT_BROWSERS_PATH=0 npm install && npx playwright install chromium"
 }
