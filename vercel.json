@@ -12,5 +12,6 @@
       "dest": "/api/index.js"
     }
   ],
-  "installCommand": "npm install && npx playwright install chromium"
+  "installCommand": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0 npm install && npx playwright install chromium",
+  "buildCommand": "npx playwright install chromium"
 }
