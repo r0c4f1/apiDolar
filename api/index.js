@@ -1,133 +1,99 @@
 const express = require('express');
-const { chromium } = require('playwright'); // Usar playwright completo, no core
+const puppeteer = require('puppeteer');
 
 const app = express();
 
 // Middleware
 app.use(express.json());
 
-// Ruta principal
+// Rutas
 app.get('/', (req, res) => {
   res.json({ 
-    message: 'API de scraping funcionando!',
+    message: 'API de scraping con Puppeteer funcionando!',
     endpoints: {
       scraping: '/scraping',
       health: '/health',
-      test: '/test-scraping'
+      test: '/test'
     }
   });
 });
 
-// Health check
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString()
-  });
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Ruta de TEST simple
-app.get('/test-scraping', async (req, res) => {
+// Ruta de TEST
+app.get('/test', async (req, res) => {
   let browser = null;
   
   try {
-    console.log('🚀 Iniciando test de scraping...');
+    console.log('🚀 Iniciando test con Puppeteer...');
     
-    // FORZAR la instalación de Chromium si no existe
-    const playwright = require('playwright');
-    try {
-      // Verificar si chromium está instalado
-      await playwright.chromium.launch({ headless: true }).then(browser => browser.close());
-    } catch (e) {
-      console.log('📥 Chromium no encontrado, instalando...');
-      const { execSync } = require('child_process');
-      execSync('npx playwright install chromium', { stdio: 'inherit' });
-    }
-
-    // Lanzar chromium de Playwright
-    browser = await chromium.launch({
+    // Configuración para Vercel
+    browser = await puppeteer.launch({
       headless: true,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process'
+        '--disable-gpu'
       ]
     });
 
     const page = await browser.newPage();
-    
-    // Navegar a una página simple
     await page.goto('https://httpbin.org/html', { 
       waitUntil: 'domcontentloaded',
       timeout: 15000 
     });
     
     const title = await page.title();
-    const content = await page.content();
     
     await browser.close();
     
     res.json({
       success: true,
-      message: '✅ Test de scraping exitoso!',
+      message: '✅ Puppeteer funcionando correctamente!',
       data: {
         title: title,
-        contentLength: content.length,
         timestamp: new Date().toISOString()
       }
     });
     
   } catch (error) {
-    console.error('❌ Error en test:', error);
+    console.error('❌ Error:', error);
     if (browser) await browser.close();
     
     res.status(500).json({
       success: false,
-      error: error.message,
-      suggestion: 'Probando instalación alternativa...'
+      error: error.message
     });
   }
 });
 
-// Ruta de scraping principal
+// Ruta principal de scraping
 app.get('/scraping', async (req, res) => {
   let browser = null;
   
   try {
     const url = req.query.url || 'https://example.com';
-    console.log(`🔍 Iniciando scraping de: ${url}`);
+    console.log(`🔍 Scraping: ${url}`);
     
-    // Configuración robusta para Vercel
-    browser = await chromium.launch({
+    browser = await puppeteer.launch({
       headless: true,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
-        '--no-first-run',
-        '--no-zygote'
+        '--disable-dev-shm-usage'
       ]
     });
 
     const page = await browser.newPage();
-    
-    // Configurar timeouts
-    page.setDefaultTimeout(30000);
-    page.setDefaultNavigationTimeout(30000);
-    
     await page.goto(url, { 
       waitUntil: 'domcontentloaded',
       timeout: 30000 
     });
     
-    // Extraer datos
     const title = await page.title();
     const description = await page.$eval('meta[name="description"]', el => el?.content || 'No description').catch(() => 'No description');
     const h1 = await page.$eval('h1', el => el?.textContent?.trim() || 'No H1').catch(() => 'No H1');
@@ -146,7 +112,7 @@ app.get('/scraping', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Error en scraping:', error);
+    console.error('❌ Error:', error);
     if (browser) await browser.close();
     
     res.status(500).json({
@@ -156,13 +122,12 @@ app.get('/scraping', async (req, res) => {
   }
 });
 
-// Export para Vercel
 module.exports = app;
 
-// Solo para desarrollo local
+// Desarrollo local
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
-    console.log(`🚀 Servidor local en puerto ${PORT}`);
+    console.log(`🚀 Servidor en puerto ${PORT}`);
   });
 }
