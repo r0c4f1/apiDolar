@@ -1,20 +1,15 @@
 const express = require('express');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
+const chromium = require('chrome-aws-lambda');
 
 const app = express();
 
-// Middleware
 app.use(express.json());
 
-// Rutas
 app.get('/', (req, res) => {
   res.json({ 
-    message: 'API de scraping con Puppeteer funcionando!',
-    endpoints: {
-      scraping: '/scraping',
-      health: '/health',
-      test: '/test'
-    }
+    message: 'API funcionando con puppeteer-core!',
+    endpoints: ['/scraping', '/health', '/test']
   });
 });
 
@@ -22,29 +17,25 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Ruta de TEST
 app.get('/test', async (req, res) => {
   let browser = null;
   
   try {
-    console.log('🚀 Iniciando test con Puppeteer...');
+    console.log('🚀 Iniciando test...');
     
-    // Configuración para Vercel
+    const executablePath = await chromium.executablePath;
+    console.log('Chromium path:', executablePath);
+    
     browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu'
-      ]
+      args: chromium.args,
+      executablePath: executablePath,
+      headless: chromium.headless,
     });
 
     const page = await browser.newPage();
     await page.goto('https://httpbin.org/html', { 
       waitUntil: 'domcontentloaded',
-      timeout: 15000 
+      timeout: 10000 
     });
     
     const title = await page.title();
@@ -53,50 +44,37 @@ app.get('/test', async (req, res) => {
     
     res.json({
       success: true,
-      message: '✅ Puppeteer funcionando correctamente!',
-      data: {
-        title: title,
-        timestamp: new Date().toISOString()
-      }
+      message: '✅ Test exitoso!',
+      data: { title }
     });
     
   } catch (error) {
     console.error('❌ Error:', error);
     if (browser) await browser.close();
-    
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Ruta principal de scraping
 app.get('/scraping', async (req, res) => {
   let browser = null;
   
   try {
     const url = req.query.url || 'https://example.com';
-    console.log(`🔍 Scraping: ${url}`);
     
     browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage'
-      ]
+      args: chromium.args,
+      executablePath: await chromium.executablePath,
+      headless: chromium.headless,
     });
 
     const page = await browser.newPage();
     await page.goto(url, { 
       waitUntil: 'domcontentloaded',
-      timeout: 30000 
+      timeout: 15000 
     });
     
     const title = await page.title();
     const description = await page.$eval('meta[name="description"]', el => el?.content || 'No description').catch(() => 'No description');
-    const h1 = await page.$eval('h1', el => el?.textContent?.trim() || 'No H1').catch(() => 'No H1');
     
     await browser.close();
     
@@ -106,28 +84,21 @@ app.get('/scraping', async (req, res) => {
         url: url,
         title: title,
         description: description,
-        h1: h1,
         scrapedAt: new Date().toISOString()
       }
     });
     
   } catch (error) {
-    console.error('❌ Error:', error);
     if (browser) await browser.close();
-    
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
 module.exports = app;
 
-// Desarrollo local
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
-    console.log(`🚀 Servidor en puerto ${PORT}`);
+    console.log(`🚀 Servidor local en puerto ${PORT}`);
   });
 }
