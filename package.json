@@ -1,15 +1,19 @@
 {
   "name": "exchangemonitor-scraper",
   "version": "1.0.0",
-  "description": "Scraper para exchangemonitor.net",
+  "description": "Scraper para exchangemonitor.net con Playwright",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node index.js"
+    "dev": "node index.js",
+    "installplay": "npx playwright install chromium"
   },
   "dependencies": {
-    "puppeteer": "21.0.0",
-    "express": "4.18.2",
-    "node-cron": "3.0.2"
+    "playwright": "^1.40.0",
+    "express": "^4.18.2",
+    "node-cron": "^3.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
